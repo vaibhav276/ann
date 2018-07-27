@@ -6,10 +6,32 @@
              width: 40%;
              height: 50%;
          }
+
+         #manual {
+             display: none;
+         }
+
+         #predict {
+             position: absolute;
+             bottom: 25%;
+             right: 25%;
+         }
+         #clear {
+             position: absolute;
+             bottom: 20%;
+             right: 25%;
+         }
+         #prediction {
+             position: absolute;
+             bottom: 10%;
+             right: 25%;
+             font-size: 50px;
+         }
         </style>
     </head>
     <body>
         <div id="root">
+            <h1>Handwritten digit recognizer</h1>
             <div id="lossPlotContainer" class="plotContainer">
                 <canvas id="lossPlot"></canvas>
             </div>
@@ -18,6 +40,13 @@
             </div>
             <div id="evalAccPlotContainer" class="plotContainer">
                 <canvas id="evalAccPlot"></canvas>
+            </div>
+            <div id="manual">
+                <canvas id="freehand" width="140" height="140" style="position:absolute;bottom:10%;right:10%;border:2px solid; background:black"></canvas>
+                <canvas id="lowres" width="28" height="28" style="position:absolute;bottom:10%;right:5%;border:2px solid; background:black"></canvas>
+                <button id="predict">Scan</button>
+                <button id="clear">Clear</button>
+                <span id="prediction">?</span>
             </div>
         </div>
     </body>

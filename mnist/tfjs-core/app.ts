@@ -1,7 +1,8 @@
 import * as mnist from 'mnist';
 import * as tf from '@tensorflow/tfjs';
 import { activation } from '@tensorflow/tfjs-layers/dist/exports_layers';
-import { metrics, test_util } from '@tensorflow/tfjs';
+import { metrics } from '@tensorflow/tfjs';
+import * as $ from 'jquery';
 import * as _ from 'underscore';
 import * as cjs from 'chart.js';
 
@@ -53,7 +54,8 @@ type PlotData = [
     }
 ]
 
-function createModel(modelShape: ModelShape, hyperParams: HyperParams): tf.Model {
+function createModel(modelShape: ModelShape,
+                     hyperParams: HyperParams): tf.Model {
     let model = tf.sequential();
 
     model.add(tf.layers.dense({
@@ -232,6 +234,124 @@ function updatePlot(chart: cjs.Chart, x: number, y:number): void {
     });
 }
 
+function enableFreehandInput(): void {
+    let clicking = false;
+    let canvas = $('#freehand')[0] as HTMLCanvasElement;
+    let ctx = canvas.getContext('2d');
+    let prevX = 0;
+    let prevY = 0;
+    let currX = 0;
+    let currY = 0;
+    let dotFlag = false;
+    let fillStyle = 'white';
+
+    $('#manual').show();
+
+    $('#freehand').mousedown(e => {
+        prevX = currX;
+        prevY = currY;
+        currX = e.clientX - canvas.offsetLeft;
+        currY = e.clientY - canvas.offsetTop;
+        clicking = true;
+        dotFlag = true;
+        if (dotFlag) {
+            ctx.beginPath();
+            ctx.fillStyle = fillStyle;
+            ctx.fillRect(currX, currY, 20, 20);
+            ctx.closePath();
+            dotFlag = false;
+        }
+    });
+    $('#freehand').mouseup(e => {
+        clicking = false;
+    });
+    $('#freehand').mouseout(e => {
+        clicking = false;
+    });
+    $('#freehand').mousemove(e => {
+        if (clicking) {
+            prevX = currX;
+            prevY = currY;
+            currX = e.clientX - canvas.offsetLeft;
+            currY = e.clientY - canvas.offsetTop;
+
+            ctx.beginPath();
+            ctx.moveTo(prevX, prevY);
+            ctx.lineTo(currX, currY);
+            ctx.strokeStyle = fillStyle;
+            ctx.lineWidth = 20;
+            ctx.stroke();
+            ctx.closePath();
+        }
+    });
+}
+
+$('#predict').click(() => {
+    let canvas = $('#freehand')[0] as HTMLCanvasElement;
+    let ctx = canvas.getContext('2d');
+    const imgd = ctx.getImageData(0, 0, 140, 140);
+    const pix = imgd.data;
+
+    // let cout = document.createElement('canvas');
+    let cout = $('#lowres')[0] as HTMLCanvasElement;
+    let octx = cout.getContext('2d');
+    octx.clearRect(0, 0, 28, 28);
+    octx.drawImage(canvas, 0, 0, 140, 140, 0, 0, 28, 28);
+
+    const imgd1 = octx.getImageData(0, 0, 28, 28);
+    const pix1 = imgd1.data;
+
+    // $(cout).remove();
+
+    let pix2 = []
+    for (let i = 0; i < pix1.length; i++) {
+        if (i % 4 == 0) {
+            let j = i / 4;
+            pix2[j] = pix1[i];
+            pix2[j+1] = 0;
+            pix2[j+2] = 0;
+            pix2[j+3] = 255;
+        }
+    }
+    pix2 = _.take(pix2, 784);
+
+    let res = predictSingleInput(pix2);
+    let resNum = arrToNum(res);
+    $('#prediction').html(resNum.toString());
+});
+
+$('#clear').click(() => {
+    let canvas = $('#freehand')[0] as HTMLCanvasElement;
+    let ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 140, 140);
+    $('#prediction').html('?');
+});
+
+function predictSingleInput(pix: number[]): number[] {
+    const pixT = tf.tensor2d(pix, [1, 784]);
+    const resT = globalModel.predict(pixT);
+    const resArr = resT.dataSync();
+    tf.dispose(pixT);
+    tf.dispose(resT);
+
+    let max = _.max(resArr);
+    const res = _.map(resArr, e => {
+        return (e == max ? 1 as number : 0 as number);
+    });
+
+    // console.log(res);
+
+    return res;
+}
+
+function arrToNum(arr: number[]): number {
+    for(let i = 0; i < arr.length; i++) {
+        if (arr[i] == 1) {
+            return i;
+        }
+    }
+}
+
 function main(): void {
     let fullset = mnist.set(8000, 2000);
     let trainingData = fullset.training;
@@ -281,12 +401,16 @@ function main(): void {
 
             let i = Math.floor(trainingData.length / hyperParams.batchSize);
             updatePlot(evalPlot, i, evalAcc * 100);
+
+            globalModel = model;
+            enableFreehandInput();
         });
 }
 
 let lossPlot = initPlot('lossPlot', 'loss', '#f45042', 'Training losses');
 let accPlot = initPlot('accPlot', 'acc', '#05933e', 'Training accuracies');
 let evalPlot = initPlot('evalAccPlot', 'evalAcc', '#00d8d1', 'Evaluation accuracies');
+let globalModel: tf.Model = undefined;
 
 main();
 
