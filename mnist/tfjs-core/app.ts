@@ -101,7 +101,7 @@ async function trainModel(hyperParams: HyperParams,
                                     {
                                         batchSize: trainingDataChunks[i].length,
                                         epochs: hyperParams.epochs,
-                                        validationSplit: 0.8
+                                        validationSplit: 0.1
                                     }
                                    );
 
@@ -367,7 +367,7 @@ function main(): void {
         },
         hidden: [
             {
-                units: 9
+                units: 100
             }
         ],
         output: {
